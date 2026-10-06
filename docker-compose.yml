@@ -1,0 +1,40 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: uvicorn server:app --host 0.0.0.0 --port 8001
+    working_dir: /app/backend
+    env_file: backend/.env
+    environment:
+      MONGO_URL: mongodb://mongo:27017
+      DB_NAME: spectreai
+      DEVELOPMENT_MODE: "true"
+    ports:
+      - "8001:8001"
+    depends_on:
+      - mongo
+      - redis
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: python worker_placeholder.py
+    working_dir: /app/backend
+    env_file: backend/.env
+    environment:
+      MONGO_URL: mongodb://mongo:27017
+      DB_NAME: spectreai
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - mongo
+      - redis
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo_data:/data/db
+  redis:
+    image: redis:7-alpine
+
+volumes:
+  mongo_data:
