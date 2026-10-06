@@ -4,7 +4,7 @@ import { storage } from "@/src/utils/storage";
 export type Project = { id: string; prompt: string; target_duration_minutes: number; visual_style: string; aspect_ratio: string; language: string; voice_style: string; created_at: string; latest_job_id?: string | null };
 export type Job = { id: string; project_id: string; status: string; stage: string; progress: number; current_shot: number; total_shots: number; message: string; created_at: string; updated_at: string; story?: { title: string; premise: string; narration: string; target_duration_seconds: number }; characters?: { id: string; name: string; role: string; clothing: string; continuity_rules: string }[]; scenes?: { id: string; number: number; title: string; mood: string }[]; clips?: { id: string; shot_id: string; status: string; duration_seconds: number }[]; audio?: { id: string; type: string; status: string; duration_seconds: number }[]; style_bible?: { animation_style: string; palette: string[]; atmosphere: string; aspect_ratio: string }; quality_report?: { passed: boolean; checks: string[]; warnings: string[] }; credit_status?: { allowed: boolean; reason: string; provider: string }; final_asset?: { filename: string; download_ready: boolean; note?: string } };
 
-const baseUrl = String(Constants.expoConfig?.extra?.backendUrl ?? process.env.EXPO_PUBLIC_BACKEND_URL ?? "").replace(/\/$/, "");
+const baseUrl = String(Constants.expoConfig?.extra?.backendUrl ?? process.env.EXPO_BACKEND_URL ?? process.env.EXPO_PUBLIC_BACKEND_URL ?? "").replace(/\/$/, "");
 const tokenKey = "spectreai_token";
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
