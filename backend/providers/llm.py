@@ -15,7 +15,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-from providers import ProviderBlocked, ProviderError
+from providers import ProviderBlocked, ProviderCreditsExhausted, ProviderError, is_credit_error
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT_DIR / ".env")
@@ -65,6 +65,8 @@ async def _ask(prompt: str, session_id: str) -> Any:
     try:
         response = await chat.send_message(UserMessage(text=prompt))
     except Exception as exc:  # provider/network failure — surface honestly
+        if is_credit_error(exc):
+            raise ProviderCreditsExhausted("llm", "LLM provider budget exhausted — top up the key balance, then resume the job") from exc
         raise ProviderError("llm", f"LLM request failed: {exc}") from exc
     text = response if isinstance(response, str) else str(response)
     return _parse_json(text)

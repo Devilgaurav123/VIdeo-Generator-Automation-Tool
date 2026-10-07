@@ -17,3 +17,13 @@ class ProviderError(Exception):
         super().__init__(f"{provider}: {reason}")
         self.provider = provider
         self.reason = reason
+
+
+class ProviderCreditsExhausted(ProviderBlocked):
+    """Provider account is out of budget/credits. Parks the job in
+    WAITING_FOR_CREDITS so it can resume once the balance is topped up."""
+
+
+def is_credit_error(exc: Exception) -> bool:
+    text = str(exc).lower()
+    return any(marker in text for marker in ("budget", "ratelimit", "rate limit", "insufficient_quota", "insufficient quota", "402", "credit"))

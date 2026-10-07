@@ -97,6 +97,10 @@ async def _veo_clip(shot: dict[str, Any], keyframe_path: str | None, out_path: s
     except ProviderError:
         raise
     except Exception as exc:
+        if "budget" in str(exc).lower() or "rate" in str(exc).lower() or "quota" in str(exc).lower():
+            from providers import ProviderCreditsExhausted
+
+            raise ProviderCreditsExhausted("google-veo", "Veo provider credits exhausted — top up, then resume the job") from exc
         raise ProviderError("google-veo", f"Veo generation failed: {exc}") from exc
     return {"provider": "google-veo", "model": VEO_MODEL, "duration_seconds": shot.get("duration_seconds", 8)}
 

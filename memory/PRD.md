@@ -31,6 +31,9 @@ Build a complete, production-ready AI horror video automation platform across Ex
 - Full mock→production overhaul: Postgres schema, Celery/Redis workers, all provider adapters, FFmpeg assembly, object-storage upload.
 - Verified end-to-end: 64s / 5.8MB MP4 (h264+aac+mov_text), 8 AI keyframes, 8 animatic clips, TTS narration, synth BGM/SFX, SRT subtitles, QC passed; uploaded to object storage.
 - Frontend: production states (BLOCKED_PROVIDER card, provider-gated credit card), live shot progress, real MP4 preview (expo-video) + download, image format sniffing, polling backoff on auth errors.
+- Frontend (2026-10-07): per-shot "Shot reel" strip on the job screen — horizontal keyframe thumbnails (expo-image via tokenized asset URLs) with per-shot status (pending / RENDERING / rendered check), filling in live as clips complete.
+- Backend (2026-10-07): provider credit-exhaustion handling — budget/rate-limit errors from LLM/image/TTS/Veo park the job in WAITING_FOR_CREDITS (resumable, no re-spend) instead of FAILED.
+- Infra (2026-10-07): container-rebuild resilience — `scripts/infra_bootstrap.sh` (idempotent apt install + Postgres provisioning) runs under supervisor; postgres/redis/celery wait on a ready marker; backend retries DB init at startup.
 - Testing: iteration_2 — backend 16/16 pytest pass, all frontend flows pass. Testing agent fixed job-scoped scene/shot PKs (regression: second job previously failed with UniqueViolation).
 
 ## Backlog

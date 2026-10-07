@@ -14,7 +14,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-from providers import ProviderBlocked, ProviderError
+from providers import ProviderBlocked, ProviderCreditsExhausted, ProviderError, is_credit_error
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT_DIR / ".env")
@@ -39,6 +39,8 @@ async def _generate(prompt: str, session_id: str, reference_images: list[bytes] 
     try:
         _text, images = await chat.send_message_multimodal_response(message)
     except Exception as exc:
+        if is_credit_error(exc):
+            raise ProviderCreditsExhausted("image", "Image provider budget exhausted — top up the key balance, then resume the job") from exc
         raise ProviderError("image", f"Image generation failed: {exc}") from exc
     if not images:
         raise ProviderError("image", "Image provider returned no image")

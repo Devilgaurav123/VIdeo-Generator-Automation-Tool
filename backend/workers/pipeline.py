@@ -21,7 +21,7 @@ from typing import Any
 
 from db.session import SessionLocal, init_db
 from models import Character, Job, JobEvent, MediaAsset, Project, Scene, Shot
-from providers import ProviderBlocked, ProviderError
+from providers import ProviderBlocked, ProviderCreditsExhausted, ProviderError
 from providers import audio as audio_provider
 from providers import image as image_provider
 from providers import llm as llm_provider
@@ -271,6 +271,16 @@ def run_pipeline(self, job_id: str) -> None:
         _pipeline(session, job_id)
     except _Cancelled:
         logger.info("job=%s cancelled", job_id)
+    except ProviderCreditsExhausted as exhausted:
+        session.rollback()
+        job = _refresh(session, job_id)
+        job.status = "WAITING_FOR_CREDITS"
+        job.message = exhausted.reason
+        job.error = exhausted.reason
+        job.credit_status = {**(job.credit_status or {}), "allowed": False, "provider": exhausted.provider, "reason": exhausted.reason, "checked_at": _utcnow_iso()}
+        session.add(JobEvent(job_id=job_id, stage=job.stage, status="WAITING_FOR_CREDITS", progress=job.progress, message=exhausted.reason))
+        session.commit()
+        logger.warning("job=%s waiting for credits: %s", job_id, exhausted.reason)
     except ProviderBlocked as blocked:
         session.rollback()
         job = _refresh(session, job_id)

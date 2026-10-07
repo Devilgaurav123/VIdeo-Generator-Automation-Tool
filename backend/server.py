@@ -437,7 +437,15 @@ async def job_socket(websocket: WebSocket, job_id: str):
 
 @app.on_event("startup")
 async def startup() -> None:
-    init_db()
+    for attempt in range(15):
+        try:
+            init_db()
+            break
+        except Exception as exc:
+            logger.warning("database not ready (attempt %s): %s", attempt + 1, exc)
+            await asyncio.sleep(2)
+    else:
+        raise RuntimeError("PostgreSQL unavailable after retries")
     try:
         from providers.storage import init_storage
 

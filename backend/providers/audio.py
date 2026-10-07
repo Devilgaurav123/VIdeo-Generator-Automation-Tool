@@ -13,7 +13,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-from providers import ProviderBlocked, ProviderError
+from providers import ProviderBlocked, ProviderCreditsExhausted, ProviderError, is_credit_error
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT_DIR / ".env")
@@ -81,6 +81,8 @@ async def generate_narration(text: str, out_path: str, job_id: str) -> dict[str,
                 # model/voice incompatibility — fall back once to tts-1 defaults
                 audio = await tts.generate_speech(text=chunk, model="tts-1", voice=TTS_VOICE)
             except Exception as exc:
+                if is_credit_error(exc):
+                    raise ProviderCreditsExhausted("tts", "TTS provider budget exhausted — top up the key balance, then resume the job") from exc
                 raise ProviderError("tts", f"TTS generation failed: {exc}") from exc
             part = f"{out_path}.part{index}.mp3"
             Path(part).write_bytes(audio)
