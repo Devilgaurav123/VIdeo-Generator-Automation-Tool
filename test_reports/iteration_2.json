@@ -1,0 +1,58 @@
+{
+  "summary": "Tested production SpectreAI stack (Postgres+Celery+Redis+FFmpeg). Backend: 16/16 pytest pass against public URL (health=production/ffmpeg-animatic, auth incl. 409/401 guards, reference job structure, credit-status, real 5.8MB MP4 download verified via ffprobe h264+aac+mov_text/64s, token asset streaming for image+clip, 404 boundaries). Found and fixed a CRITICAL bug: scene/shot rows used global deterministic PKs (scene-01, shot-001) so EVERY job after the first failed at SCENE_PLANNING with Postgres UniqueViolation. After job-scoping the IDs, the FAILED UI-created job was resumed via API and completed end-to-end: exactly 8 keyframes + 8 clips (no duplicates, completed stages skipped, no credits re-spent), quality gate passed, new real 7.1MB MP4 downloaded and ffprobe-verified. Frontend: login, 'Your productions' home with 'Provider-gated' card (no 'Development mode'), Archive, completed-job screen (15/15 stages Verified, SHOT 08/08, QUALITY GATE PASSED card, watch-preview-button + download-mp4-button 'Download MP4 · 6.8 MB'), Create-tab production with live progress/shot counter all verified on mobile viewport.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/v1/projects/{id}/generate (pipeline SCENE_PLANNING)", "issue": "FIXED BY TESTING AGENT: workers/pipeline.py inserted Scene ids as 'scene-{n:02d}' and Shot ids as 'shot-{n:03d}' — global primary keys, so the 2nd job ever run failed with psycopg2 UniqueViolation 'scenes_pkey Key (id)=(scene-01) already exists'. Only one job could ever complete per database. Fixed by job-scoping ids (job_id[:8] prefix, still <=40 chars). Recommend main agent review this fix and consider uuid PKs + UniqueConstraint(job_id, number) instead.", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "GET /api/v1/assets/{asset_id}/file", "issue": "AI keyframes/references are JPEG bytes (file(1): 'JPEG image data') but stored as *.png and served with Content-Type image/png. Renders in browsers via sniffing but is an honest-labeling mismatch."},
+      {"endpoint": "GET /api/v1/assets/{asset_id}/file + /download", "issue": "Range requests are ignored (200 full-body instead of 206). Native/mobile players usually cope (faststart MP4), but seeking/large files would benefit from range support."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ResultCard", "issue": "Result note duplicates provider text: 'Rendered with ffmpeg-animatic · Rendered with ffmpeg-animatic clips (configure GOOGLE_API_KEY...)' — final_asset.rendered_with and quality warning repeat each other.", "testID": "download-mp4-button", "priority": "LOW"},
+      {"component": "JobScreen header", "issue": "Long story titles clip against the status pill (e.g. 'The Glass That Knew Him' truncated) — job-title Text has no numberOfLines/flex shrink.", "testID": "job-title", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "JobScreen polling", "issue": "getJob polls every 1s and silently swallows errors; with an invalid/expired token this spams GET /jobs/{id} 401s indefinitely (observed in backend logs) instead of signing out or backing off. Backend exposes /ws/jobs/{id} websocket but frontend does not use it.", "affected_testIDs": ["job-title"]},
+      {"flow": "Watch final cut in Expo web preview", "issue": "In-browser preview playback could NOT be verified: this test Chromium lacks proprietary H.264/AAC codecs (canPlayType avc1=''; even Google's public H.264 sample fails with MEDIA_ELEMENT_ERROR). The VideoView mounts and requests the correct tokenized stream URL (200 video/mp4); the downloaded MP4 is a valid h264+aac+mov_text file. Expected to work in real Chrome/Safari and native builds — NOT an app bug, verify on device.", "affected_testIDs": ["watch-preview-button", "final-video-player"]}
+    ],
+    "design_issues": [
+      {"screen": "Job result", "issues": ["Redundant duplicated warning text under result title (see ui_bugs)."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_acceptance.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Review my fix in /app/backend/workers/pipeline.py (scene/shot IDs now job-scoped '{job_id[:8]}-scene-NN' / '{job_id[:8]}-shot-NNN'); prefer uuid PKs or UniqueConstraint(job_id, number) as a durable fix, and add a regression test that runs 2 jobs in one database.",
+    "Fix keyframe/reference storage extension + served content-type (bytes are JPEG, stored/served as PNG).",
+    "De-duplicate the 'Rendered with ffmpeg-animatic' note in ResultCard (choose final_asset.rendered_with OR quality warning).",
+    "JobScreen: stop polling / sign out on 401, consider backoff or the existing /ws/jobs/{job_id} websocket instead of 1s polling.",
+    "Align credit-wait status strings: frontend checks 'WAITING_FOR_FREE_CREDITS' while backend resume accepts 'WAITING_FOR_CREDITS' (neither is emitted today — latent).",
+    "Constrain job-title width (flex:1 + numberOfLines) so long titles don't clip beside the status pill.",
+    "Verify 'Watch final cut' playback on a real device/Chrome (H.264 works there); test-env Chromium cannot decode H.264."
+  ],
+  "critical_code_review_comments": [
+    "Scene/Shot primary keys were global deterministic strings — multi-job deployments were broken (fixed during this iteration).",
+    "Resume path proven idempotent: story/characters/references/style stages skipped on resume; exactly 8 keyframes + 8 clips for 8 shots after FAILED->resume->COMPLETED; 'Queued to resume' event logged.",
+    "Credit gate honest: BLOCKED_PROVIDER path exists when fallback disabled; ffmpeg-animatic labeled in credit_status, quality warnings, and result card.",
+    "backend/.env still carries unused MONGO_URL/DB_NAME (protected vars, left as-is); frontend reads EXPO_PUBLIC_BACKEND_URL while contract names EXPO_BACKEND_URL (api.ts falls back across both).",
+    "Old iteration_1 mock-mode test (asserted development_mode=True) replaced with production suite."
+  ],
+  "updated_files": [
+    "/app/backend/workers/pipeline.py",
+    "/app/backend/tests/test_acceptance.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/test_reports/iteration_2.json"
+  ],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "100% of required flows (in-browser video playback unverifiable due to test-env codec limitation)"},
+  "seed_data_creation": "TEST_boundary project (job cancelled during download-404 boundary test) and one UI-created 1-min production 'Attendance' (job e1912c19-2a76-461d-b352-e3fea72b4b50, COMPLETED, real 7.1MB MP4) under spectreai.tester@example.com.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Public URL https://fright-forge-19.preview.emergentagent.com; creds spectreai.tester@example.com / SpectreTest123!. Reference completed job 2b258f0a-e58e-465c-9778-b020e7f06353 and UI job e1912c19-2a76-461d-b352-e3fea72b4b50 both COMPLETED with real MP4s. CRITICAL scene/shot PK collision was fixed by testing agent (job-scoped ids in workers/pipeline.py); celery-worker must be restarted after pipeline.py edits. Real 1-min pipeline takes ~2.5-8 min (faster on resume). Cloudflare blocks urllib default UA (403) — use requests or set a User-Agent. Test Chromium cannot play H.264 — don't treat preview playback failure as an app bug.",
+  "rca_of_issue": "Bug: every job after the first FAILED at SCENE_PLANNING. RCA: workers/pipeline.py inserted Scene rows with id=f'scene-{number:02d}' and Shot rows with id=f'shot-{position:03d}'. These columns are global primary keys (String(40)), not scoped per job, so the second job's INSERT violated scenes_pkey ('scene-01' already exists). Reproduction: create two projects and run generate on both; the second job fails with psycopg2 UniqueViolation. Mitigation applied: ids prefixed with job_id[:8] (<=40 chars, collision-safe). Verified: the failed job was resumed via POST /jobs/{id}/resume and completed with exactly 8 shots/clips/keyframes and a valid 7.1MB h264+aac+mov_text MP4."
+}

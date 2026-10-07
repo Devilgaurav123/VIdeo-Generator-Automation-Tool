@@ -1,0 +1,8 @@
+file '/app/backend/media/jobs/2b258f0a-e58e-465c-9778-b020e7f06353/clip_shot-001.mp4'
+file '/app/backend/media/jobs/2b258f0a-e58e-465c-9778-b020e7f06353/clip_shot-002.mp4'
+file '/app/backend/media/jobs/2b258f0a-e58e-465c-9778-b020e7f06353/clip_shot-003.mp4'
+file '/app/backend/media/jobs/2b258f0a-e58e-465c-9778-b020e7f06353/clip_shot-004.mp4'
+file '/app/backend/media/jobs/2b258f0a-e58e-465c-9778-b020e7f06353/clip_shot-005.mp4'
+file '/app/backend/media/jobs/2b258f0a-e58e-465c-9778-b020e7f06353/clip_shot-006.mp4'
+file '/app/backend/media/jobs/2b258f0a-e58e-465c-9778-b020e7f06353/clip_shot-007.mp4'
+file '/app/backend/media/jobs/2b258f0a-e58e-465c-9778-b020e7f06353/clip_shot-008.mp4'

@@ -2,7 +2,8 @@ import Constants from "expo-constants";
 import { storage } from "@/src/utils/storage";
 
 export type Project = { id: string; prompt: string; target_duration_minutes: number; visual_style: string; aspect_ratio: string; language: string; voice_style: string; created_at: string; latest_job_id?: string | null };
-export type Job = { id: string; project_id: string; status: string; stage: string; progress: number; current_shot: number; total_shots: number; message: string; created_at: string; updated_at: string; story?: { title: string; premise: string; narration: string; target_duration_seconds: number }; characters?: { id: string; name: string; role: string; clothing: string; continuity_rules: string }[]; scenes?: { id: string; number: number; title: string; mood: string }[]; clips?: { id: string; shot_id: string; status: string; duration_seconds: number }[]; audio?: { id: string; type: string; status: string; duration_seconds: number }[]; style_bible?: { animation_style: string; palette: string[]; atmosphere: string; aspect_ratio: string }; quality_report?: { passed: boolean; checks: string[]; warnings: string[] }; credit_status?: { allowed: boolean; reason: string; provider: string }; final_asset?: { filename: string; download_ready: boolean; note?: string } };
+export type MediaAssetView = { id: string; kind: string; provider: string; status: string; shot_id?: string | null; duration_seconds?: number | null; storage_path?: string | null; download_ready: boolean; meta: Record<string, unknown> };
+export type Job = { id: string; project_id: string; status: string; stage: string; progress: number; current_shot: number; total_shots: number; message: string; error?: string | null; created_at: string; updated_at: string; story?: { title: string; premise: string; narration: string; target_duration_seconds: number }; characters?: { id: string; name: string; role: string; clothing?: string; continuity_rules: string }[]; scenes?: { id: string; number: number; title: string; mood: string }[]; shots?: { id: string; shot_number: number; status: string; duration_seconds: number }[]; clips?: MediaAssetView[]; audio?: MediaAssetView[]; assets?: MediaAssetView[]; style_bible?: { animation_style: string; palette: string[]; atmosphere: string; aspect_ratio: string }; quality_report?: { passed: boolean; checks: string[]; warnings: string[]; errors?: string[]; duration_seconds?: number }; credit_status?: { allowed: boolean; reason: string; provider: string }; final_asset?: { filename: string; download_ready: boolean; note?: string; duration_seconds?: number; size_bytes?: number; rendered_with?: string } };
 
 const baseUrl = String(Constants.expoConfig?.extra?.backendUrl ?? process.env.EXPO_BACKEND_URL ?? process.env.EXPO_PUBLIC_BACKEND_URL ?? "").replace(/\/$/, "");
 const tokenKey = "spectreai_token";
@@ -29,3 +30,8 @@ export async function startGeneration(projectId: string) { return request<{ job_
 export async function getJob(jobId: string) { return request<Job>(`/api/v1/jobs/${jobId}`); }
 export async function cancelJob(jobId: string) { return request<{ status: string }>(`/api/v1/jobs/${jobId}/cancel`, { method: "POST", body: JSON.stringify({}) }); }
 export async function resumeJob(jobId: string) { return request<{ status: string }>(`/api/v1/jobs/${jobId}/resume`, { method: "POST" }); }
+
+export async function assetFileUrl(assetId: string) {
+  const token = await storage.secureGet(tokenKey, null);
+  return `${baseUrl}/api/v1/assets/${assetId}/file?token=${encodeURIComponent(token ?? "")}`;
+}
