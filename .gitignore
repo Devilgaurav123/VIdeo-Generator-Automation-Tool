@@ -80,3 +80,11 @@ memory/test_credentials.md
 
 # Mobile development
 android-sdk/project.zip
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Large project archive
+project.zip
